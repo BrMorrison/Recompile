@@ -63,7 +63,8 @@ class Compare(Instruction):
     escaped_char1: str
     escaped_char2: str
     def code(self) -> str:
-        return f"Compare {self.escaped_char1} {self.escaped_char2}"
+        opcode = "InvCompare" if self.inverted else "Compare"
+        return f"{opcode} {self.escaped_char1} {self.escaped_char2}"
 
 @dataclass
 class Branch(Instruction):

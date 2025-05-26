@@ -15,7 +15,7 @@ _opcode_shift = 29
 _save_index_shift = 16 # This one can be wherever
 _inverted_shift = 28
 _dest_shift = 16
-_dest2_shift = 2
+_dest2_shift = 4
 _char_min_shift = 8
 _char_max_shift = 0
 

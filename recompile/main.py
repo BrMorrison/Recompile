@@ -18,7 +18,8 @@ def main():
 
     if args.file:
         with open(args.file, "r") as f:
-            regex_src = f.read()
+            # Just read the first line
+            regex_src = f.read().split('\n')[0]
     else:
         regex_src = args.regex
 
@@ -26,16 +27,16 @@ def main():
     compiled: str | bytes = ''
     if args.asm:
         compiled = compiler.compile_asm(regex_src)
+        file_mode = "w"
     else:
         compiled = compiler.compile_bin(regex_src)
+        file_mode = "wb"
 
-    file_mode = "w"
     match (args.out_file, args.asm):
         case (None, True):
             out_file = None
         case (None, False):
             out_file = 'out.bin'
-            file_mode = "wb"
         case (f, _):
             out_file = f
 
