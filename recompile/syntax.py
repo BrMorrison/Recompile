@@ -19,6 +19,7 @@ class Group(Construction):
     Currently just supported for the top-level expression.
     '''
     expression_index: int
+    is_top_level: bool
     expression: Construction
 
 @dataclass

@@ -2,13 +2,10 @@ from dataclasses import dataclass
 
 """
 Instructions:
-- Match
-- Save <index>
-- Jump <dest>
+- Save <index> <is_match>
 - Split <dest1> <dest2>
-- Compare <char1> <char2>
-- InvCompare <char1> <char2>
-- OptCompare <char1> <char2> <dest>
+- Compare <inverse> <char1> <char2>
+- Branch <dest> <char1> <char2>
 """
 
 class Instruction:
@@ -19,30 +16,15 @@ class Instruction:
         raise AssertionError("Base class should not be used")
 
 @dataclass
-class Match(Instruction):
-    """
-    Execution reaching this point means the input matches the regex.
-    """
-    def code(self) -> str:
-        return "Match"
-
-@dataclass
 class Save(Instruction):
     """
     Saves the location in the input where a match begins or ends.
+    If is_match is set, then it also indicates the input matches the pattern.
     """
     index: int
+    is_match: bool
     def code(self) -> str:
-        return f"Save {self.index}"
-
-@dataclass
-class Jump(Instruction):
-    """
-    Jump to a different location in the program.
-    """
-    dest: int
-    def code(self) -> str:
-        return f"Jump {self.dest}"
+        return f"Save {self.index} {self.is_match}"
 
 @dataclass
 class Split(Instruction):
@@ -60,19 +42,30 @@ class Compare(Instruction):
     Consumes the current input character if it's within a given range and fails otherwise.
     """
     inverted: bool
-    escaped_char1: str
-    escaped_char2: str
+    c_min: int
+    c_max: int
     def code(self) -> str:
         opcode = "InvCompare" if self.inverted else "Compare"
-        return f"{opcode} {self.escaped_char1} {self.escaped_char2}"
+        return f"{opcode} {encode_char(self.c_min)} {encode_char(self.c_max)}"
 
 @dataclass
 class Branch(Instruction):
     """
     Jump to a given destination if the current input character is within a given range.
     """
-    escaped_char1: str
-    escaped_char2: str
+    c_min: int
+    c_max: int
     dest: int
     def code(self) -> str:
-        return f"OptCompare {self.escaped_char1} {self.escaped_char2} {self.dest}"
+        return f"Branch {encode_char(self.c_min)} {encode_char(self.c_max)} {self.dest}"
+
+def encode_char(c: int) -> str:
+    '''
+    Takes a uint8 and converts it to a printable character, escaping it as necessary for
+    whitespace and non-ascii characters.
+    '''
+    encoded = chr(c)
+    if encoded.isascii() and not encoded.isspace() and encoded != '%':
+        return encoded
+    else:
+        return f"%{c}"

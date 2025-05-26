@@ -1,8 +1,10 @@
 from . import syntax, parser, code_gen, instruction, assembler
 
 def compile_regex(regex: str) -> list[instruction.Instruction]:
+    # In the future, unicode can be handled by compiling it down into a sequence of uint8s.
+    assert regex.isascii(), "Compiler currently only supports ASCII"
     # Wrap the regex in a group to allow for extraction of the match.
-    parsed = syntax.Group(0, parser.parse(regex))
+    parsed = syntax.Group(0, True, parser.parse(regex))
 
     # If the regex isn't trying to match from the start of the string, then its equivalent to
     # matching anything (.*) before the provided regex.

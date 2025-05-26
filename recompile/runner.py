@@ -22,31 +22,31 @@ def execution_step(
 ):
     i = program[pc]
     next_pc = pc+1
-    if isinstance(i, inst.Match):
-        matches.append((save_data[0], save_data[1]))
+
+    if sc > len(s):
         return
-    elif isinstance(i, inst.Save):
+    elif sc == len(s):
+        c = 0xFF
+    else:
+        c = ord(s[sc])
+    
+    if isinstance(i, inst.Save):
         save_data[i.index] = sc
-    elif isinstance(i, inst.Jump):
-        next_pc = i.dest
+        if i.is_match:
+            matches.append((save_data[i.index-1], save_data[i.index]))
+            return
     elif isinstance(i, inst.Split):
         old_data = copy.deepcopy(save_data)
         execution_step(program, s, save_data, matches, i.dest2, sc)
         save_data = old_data
         next_pc = i.dest1
     elif isinstance(i, inst.Compare):
-        if sc >= len(s):
-            return
-        c = s[sc]
-        in_range = c >= i.escaped_char1 and c <= i.escaped_char2
+        in_range = c >= i.c_min and c <= i.c_max
         if in_range == i.inverted:
             return
         sc += 1
     elif isinstance(i, inst.Branch):
-        if sc >= len(s):
-            return
-        c = s[sc]
-        in_range = c >= i.escaped_char1 and c <= i.escaped_char2
+        in_range = c >= i.c_min and c <= i.c_max
         if in_range:
             next_pc = i.dest
     else:

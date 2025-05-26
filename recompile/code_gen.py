@@ -3,15 +3,16 @@ from . import instruction as inst
 from functools import singledispatch
 
 # The wildcard and die operations are encoded as special cases of the `Compare` instruction that
-# use an invalid character (0xFF).
-_wildcard_instruction = inst.Compare(True, "%255", "%255")
-_die_instruction = inst.Compare(False, "%255", "%255")
+# use an invalid character (0xFE).
+_wildcard_instruction = inst.Compare(True, 0xFE, 0xFE)
+_die_instruction = inst.Compare(False, 0XFE, 0xFE)
+
+# A jump is just an branch whose condition matches any uint8.
+def _jump_instruction(dest: int) -> inst.Branch:
+    return inst.Branch(0x00, 0xFF, dest)
 
 def compile(val: syn.Construction) -> list[inst.Instruction]:
     code, _ = compile_helper(val, 0)
-
-    # Stick a match at the end to represent a successful match.
-    code.append(inst.Match())
     return code
 
 @singledispatch
@@ -20,14 +21,14 @@ def compile_helper(val, _:int) -> tuple[list[inst.Instruction], int]:
 
 @compile_helper.register
 def _(val: syn.Literal, pc: int) -> tuple[list[inst.Instruction], int]:
-    escaped = escape_encode(val.val)
-    return ([inst.Compare(False, escaped, escaped)], pc+1)
+    c = ord(val.val)
+    return ([inst.Compare(False, c, c)], pc+1)
 
 @compile_helper.register
 def _(val: syn.Group, pc: int) -> tuple[list[inst.Instruction], int]:
     save_index = val.expression_index*2
     exp_code, pc2 = compile_helper(val.expression, pc+1)
-    code = [inst.Save(save_index)] + exp_code + [inst.Save(save_index+1)]
+    code = [inst.Save(save_index, False)] + exp_code + [inst.Save(save_index+1, val.is_top_level)]
     return (code, pc2+1)
 
 @compile_helper.register
@@ -38,11 +39,11 @@ def _(_: syn.WildCard, pc: int) -> tuple[list[inst.Instruction], int]:
 def _(val: syn.CharSet, pc: int) -> tuple[list[inst.Instruction], int]:
     # Handle single characters and ranges separately since they don't actually need options.
     if val._is_single_char():
-        escaped = escape_encode(val.chars[0])
-        return ([inst.Compare(val.inverse, escaped, escaped)], pc+1)
+        c = ord(val.chars[0])
+        return ([inst.Compare(val.inverse, c, c)], pc+1)
     elif val._is_single_range():
         c_min, c_max = val.ranges[0]
-        return ([inst.Compare(val.inverse, escape_encode(c_min), escape_encode(c_max))], pc+1)
+        return ([inst.Compare(val.inverse, ord(c_min), ord(c_max))], pc+1)
     
     # More complex character sets require a series of commands
     """
@@ -70,12 +71,12 @@ def _(val: syn.CharSet, pc: int) -> tuple[list[inst.Instruction], int]:
     else:
         l1 = l0 + 2
         l2 = l0 + 3
-        code_postfix = [_wildcard_instruction, inst.Jump(l2), _die_instruction]
+        code_postfix = [_wildcard_instruction, _jump_instruction(l2), _die_instruction]
 
     for c in val.chars:
-        code.append(inst.Branch(escape_encode(c), escape_encode(c), l1))
+        code.append(inst.Branch(ord(c), ord(c), l1))
     for c_min, c_max in val.ranges:
-        code.append(inst.Branch(escape_encode(c_min), escape_encode(c_max), l1))
+        code.append(inst.Branch(ord(c_min), ord(c_max), l1))
     code += code_postfix
 
     return (code, l2)
@@ -101,7 +102,7 @@ def _(val: syn.Alternatives, pc: int) -> tuple[list[inst.Instruction], int]:
     code1, pc1 = compile_helper(val.alt1, l1)
     l2 = pc1+1
     code2, l3 = compile_helper(val.alt2, l2)
-    return ([inst.Split(l1, l2)] + code1 + [inst.Jump(l3)] + code2, l3)
+    return ([inst.Split(l1, l2)] + code1 + [_jump_instruction(l3)] + code2, l3)
 
 @compile_helper.register
 def _(val: syn.Option, pc: int) -> tuple[list[inst.Instruction], int]:
@@ -140,15 +141,4 @@ def _(val: syn.Any, pc: int) -> tuple[list[inst.Instruction], int]:
     l2 = pc+1
     code, pc1 = compile_helper(val.val, l2)
     l3 = pc1+1
-    return ([inst.Split(l2, l3)] + code + [inst.Jump(l1)], l3)
-
-def escape_encode(c: str) -> str:
-    '''
-    Escapes characters that need escaping in code generation, like '%', ',', and spaces, which have
-    special meaning in the assembly.
-    '''
-    assert len(c) == 1, "Can only escape single characters."
-    print_val = c
-    if c.isspace() or c in ['%', ',']:
-        print_val = f"%{int.from_bytes(c.encode('utf-8'))}"
-    return print_val
+    return ([inst.Split(l2, l3)] + code + [_jump_instruction(l1)], l3)
