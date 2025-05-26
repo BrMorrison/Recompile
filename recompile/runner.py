@@ -40,14 +40,13 @@ def execution_step(
         execution_step(program, s, save_data, matches, i.dest2, sc)
         save_data = old_data
         next_pc = i.dest1
-    elif isinstance(i, inst.Compare):
-        in_range = c >= i.c_min and c <= i.c_max
-        if in_range == i.inverted:
-            return
-        sc += 1
     elif isinstance(i, inst.Branch):
         in_range = c >= i.c_min and c <= i.c_max
-        if in_range:
+        if i.consume:
+            if in_range == i.inverted:
+                return
+            sc += 1
+        elif in_range:
             next_pc = i.dest
     else:
         raise AssertionError(f"{i} is not a recognized instruction!")

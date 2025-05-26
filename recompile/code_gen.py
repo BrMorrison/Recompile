@@ -2,14 +2,21 @@ from . import syntax as syn
 from . import instruction as inst
 from functools import singledispatch
 
-# The wildcard and die operations are encoded as special cases of the `Compare` instruction that
-# use an invalid character (0xFE).
-_wildcard_instruction = inst.Compare(True, 0xFE, 0xFE)
-_die_instruction = inst.Compare(False, 0XFE, 0xFE)
+_die = inst.Branch(True, True, 0, 0, 0xFF)
+_wildcard = inst.Branch(True, False,0, 0, 0xFF)
+
+def _literal(c: int, inverted: bool) -> inst.Branch:
+    return _compare(c, c, inverted)
+
+def _compare(c_min: int, c_max: int, inverted: bool) -> inst.Branch:
+    return inst.Branch(True, inverted, 0, c_min, c_max)
+
+def _branch(c_min: int, c_max: int, dest: int) -> inst.Branch:
+    return inst.Branch(False, False, dest, c_min, c_max)
 
 # A jump is just an branch whose condition matches any uint8.
-def _jump_instruction(dest: int) -> inst.Branch:
-    return inst.Branch(0x00, 0xFF, dest)
+def _jump(dest: int) -> inst.Branch:
+    return inst.Branch(False, False, dest, 0x00, 0xFF)
 
 def compile(val: syn.Construction) -> list[inst.Instruction]:
     code, _ = compile_helper(val, 0)
@@ -21,8 +28,7 @@ def compile_helper(val, _:int) -> tuple[list[inst.Instruction], int]:
 
 @compile_helper.register
 def _(val: syn.Literal, pc: int) -> tuple[list[inst.Instruction], int]:
-    c = ord(val.val)
-    return ([inst.Compare(False, c, c)], pc+1)
+    return ([_literal(ord(val.val), False)], pc+1)
 
 @compile_helper.register
 def _(val: syn.Group, pc: int) -> tuple[list[inst.Instruction], int]:
@@ -33,17 +39,16 @@ def _(val: syn.Group, pc: int) -> tuple[list[inst.Instruction], int]:
 
 @compile_helper.register
 def _(_: syn.WildCard, pc: int) -> tuple[list[inst.Instruction], int]:
-    return ([_wildcard_instruction], pc+1)
+    return ([_wildcard], pc+1)
 
 @compile_helper.register
 def _(val: syn.CharSet, pc: int) -> tuple[list[inst.Instruction], int]:
     # Handle single characters and ranges separately since they don't actually need options.
     if val._is_single_char():
-        c = ord(val.chars[0])
-        return ([inst.Compare(val.inverse, c, c)], pc+1)
+        return ([_literal(ord(val.chars[0]), val.inverse)], pc+1)
     elif val._is_single_range():
         c_min, c_max = val.ranges[0]
-        return ([inst.Compare(val.inverse, ord(c_min), ord(c_max))], pc+1)
+        return ([_compare(ord(c_min), ord(c_max), val.inverse)], pc+1)
     
     # More complex character sets require a series of commands
     """
@@ -67,16 +72,16 @@ def _(val: syn.CharSet, pc: int) -> tuple[list[inst.Instruction], int]:
     if not val.inverse:
         l1 = l0 + 1
         l2 = l0 + 2
-        code_postfix = [_die_instruction, _wildcard_instruction]
+        code_postfix = [_die, _wildcard]
     else:
         l1 = l0 + 2
         l2 = l0 + 3
-        code_postfix = [_wildcard_instruction, _jump_instruction(l2), _die_instruction]
+        code_postfix = [_wildcard, _jump(l2), _die]
 
     for c in val.chars:
-        code.append(inst.Branch(ord(c), ord(c), l1))
+        code.append(_branch(ord(c), ord(c), l1))
     for c_min, c_max in val.ranges:
-        code.append(inst.Branch(ord(c_min), ord(c_max), l1))
+        code.append(_branch(ord(c_min), ord(c_max), l1))
     code += code_postfix
 
     return (code, l2)
@@ -102,7 +107,7 @@ def _(val: syn.Alternatives, pc: int) -> tuple[list[inst.Instruction], int]:
     code1, pc1 = compile_helper(val.alt1, l1)
     l2 = pc1+1
     code2, l3 = compile_helper(val.alt2, l2)
-    return ([inst.Split(l1, l2)] + code1 + [_jump_instruction(l3)] + code2, l3)
+    return ([inst.Split(l1, l2)] + code1 + [_jump(l3)] + code2, l3)
 
 @compile_helper.register
 def _(val: syn.Option, pc: int) -> tuple[list[inst.Instruction], int]:
@@ -141,4 +146,4 @@ def _(val: syn.Any, pc: int) -> tuple[list[inst.Instruction], int]:
     l2 = pc+1
     code, pc1 = compile_helper(val.val, l2)
     l3 = pc1+1
-    return ([inst.Split(l2, l3)] + code + [_jump_instruction(l1)], l3)
+    return ([inst.Split(l2, l3)] + code + [_jump(l1)], l3)

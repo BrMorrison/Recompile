@@ -37,27 +37,26 @@ class Split(Instruction):
         return f"Split {self.dest1} {self.dest2}"
 
 @dataclass
-class Compare(Instruction):
-    """
-    Consumes the current input character if it's within a given range and fails otherwise.
-    """
-    inverted: bool
-    c_min: int
-    c_max: int
-    def code(self) -> str:
-        opcode = "InvCompare" if self.inverted else "Compare"
-        return f"{opcode} {encode_char(self.c_min)} {encode_char(self.c_max)}"
-
-@dataclass
 class Branch(Instruction):
     """
     Jump to a given destination if the current input character is within a given range.
     """
+    consume: bool
+    inverted: bool
+    dest: int
     c_min: int
     c_max: int
-    dest: int
     def code(self) -> str:
-        return f"Branch {encode_char(self.c_min)} {encode_char(self.c_max)} {self.dest}"
+        c_min = encode_char(self.c_min)
+        c_max = encode_char(self.c_max)
+
+        match (self.consume, self.inverted):
+            case (True, False):
+                return f"Compare {c_min} {c_max}"
+            case (True, True):
+                return f"InvCompare {c_min} {c_max}"
+            case (False, _):
+                return f"Branch {c_min} {c_max} {self.dest}"
 
 def encode_char(c: int) -> str:
     '''
