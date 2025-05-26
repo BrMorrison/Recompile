@@ -1,4 +1,4 @@
-from . import syntax, parser, code_gen, instruction
+from . import syntax, parser, code_gen, instruction, assembler
 
 def compile_regex(regex: str) -> list[instruction.Instruction]:
     # Wrap the regex in a group to allow for extraction of the match.
@@ -13,7 +13,7 @@ def compile_regex(regex: str) -> list[instruction.Instruction]:
     code = code_gen.compile(parsed)
     return code
 
-def compile_wrapper(regex: str) -> str:
+def compile_asm(regex: str) -> str:
     '''
     Compile a regex from its string representation to "assembly code"
     '''
@@ -21,21 +21,11 @@ def compile_wrapper(regex: str) -> str:
     code_text = '\n'.join(map(lambda inst: inst.code(), code))
     return f"# regex: {regex}\n" + code_text
 
-def main():
-    if len(sys.argv) < 2 or len(sys.argv) > 3:
-        print(f"Usage: {sys.argv[0]} <regex> [out-file]", file=sys.stderr)
-        sys.exit(1)
-
-    regex = compile_wrapper(sys.argv[1])
-
-    if len(sys.argv) == 2:
-        print(regex)
-    else:
-        with open(sys.argv[2], "w") as f:
-            f.write(regex)
-
-if __name__ == '__main__':
-    import sys
-    main()
-else:
-    from . import code_gen, instruction
+def compile_bin(regex: str) -> bytes:
+    '''
+    Compile a regex from its string representation to binary "machine code"
+    '''
+    code = compile_regex(regex)
+    def assemble_to_bytes(i: instruction.Instruction) -> bytes:
+        return assembler.assemble(i).to_bytes(length=4)
+    return b''.join(map(assemble_to_bytes, code))
