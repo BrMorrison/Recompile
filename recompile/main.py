@@ -42,7 +42,10 @@ def main():
 
 
     if out_file is None:
-        print(compiled)
+        lines = compiled.splitlines()
+        print(lines[0])
+        for i, inst in enumerate(lines[1:]):
+            print(f"{i:3d}: {inst}")
     else:
         with open(out_file, file_mode) as f:
             f.write(compiled)

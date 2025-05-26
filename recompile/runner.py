@@ -42,12 +42,19 @@ def execution_step(
         next_pc = i.dest1
     elif isinstance(i, inst.Branch):
         in_range = c >= i.c_min and c <= i.c_max
-        if i.consume:
-            if in_range == i.inverted:
+        is_match = in_range != i.inverted
+
+        match (i.consume, is_match):
+            case (True, False):
+                # Failed a consuming Branch, failed to match pattern
                 return
-            sc += 1
-        elif in_range:
-            next_pc = i.dest
+            case (True, True):
+                sc += 1
+            case (False, True):
+                next_pc = i.dest
+            case (False, False):
+                # Nothing wrong with failing on a non-consuming branch
+                pass
     else:
         raise AssertionError(f"{i} is not a recognized instruction!")
 

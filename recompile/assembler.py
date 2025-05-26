@@ -46,7 +46,7 @@ Save <match> <index>
 | 0b10  | match | reserved | index | reserved |
 -----------------------------------------------
 '''
-_match_shift = 28
+_match_shift = 29
 _save_index_shift = 16
 
 # Returns a 32-bit number

@@ -50,13 +50,25 @@ class Branch(Instruction):
         c_min = encode_char(self.c_min)
         c_max = encode_char(self.c_max)
 
+        guaranteed = self.c_min == 0 and self.c_max == 255
+
         match (self.consume, self.inverted):
             case (True, False):
+                if guaranteed:
+                    return "Consume"
                 return f"Compare {c_min} {c_max}"
             case (True, True):
+                if guaranteed:
+                    return "Die"
                 return f"InvCompare {c_min} {c_max}"
-            case (False, _):
-                return f"Branch {c_min} {c_max} {self.dest}"
+            case (False, False):
+                if guaranteed:
+                    return f"Jump {self.dest}"
+                return f"Branch {self.dest} {c_min} {c_max}"
+            case (False, True):
+                if guaranteed:
+                    return f"Nop"
+                return f"InvBranch {self.dest} {c_min} {c_max}"
 
 def encode_char(c: int) -> str:
     '''
@@ -64,7 +76,7 @@ def encode_char(c: int) -> str:
     whitespace and non-ascii characters.
     '''
     encoded = chr(c)
-    if encoded.isascii() and not encoded.isspace() and encoded != '%':
-        return encoded
+    if encoded.isascii() and not encoded.isspace() and encoded.isprintable() and encoded != '%':
+        return f"'{encoded}'"
     else:
         return f"%{c}"
