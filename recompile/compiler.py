@@ -1,4 +1,6 @@
-from . import syntax, parser, code_gen, instruction, assembler
+from .backend import assembler, code_gen, instruction
+from .frontend import parser
+from .frontend import syntax
 
 def compile_regex(regex: str) -> list[instruction.Instruction]:
     # In the future, unicode can be handled by compiling it down into a sequence of uint8s.

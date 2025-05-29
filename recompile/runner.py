@@ -1,4 +1,4 @@
-from . import instruction as inst
+from .backend import instruction as inst
 import copy
 
 def search(s: str, regex: list[inst.Instruction]) -> str | None:

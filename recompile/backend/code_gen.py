@@ -1,4 +1,4 @@
-from . import syntax as syn
+from ..frontend import syntax as syn
 from . import instruction as inst
 from functools import singledispatch
 
