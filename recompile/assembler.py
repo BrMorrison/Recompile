@@ -67,7 +67,7 @@ def _(val: inst.Split) -> int:
     return asm & 0xFFFF_FFFF
 
 @assemble.register
-def _(val: inst.Branch) -> int:
+def _(val: inst.AluOp) -> int:
     asm = (Opcode.Branch.value << _opcode_shift) | (int(val.inverted) << _inverted_shift) \
         | (int(val.consume) << _consume_shift) | (val.dest << _dest_shift) \
         | (val.c_min << _char_min_shift) | (val.c_max << _char_max_shift)

@@ -37,7 +37,7 @@ class Split(Instruction):
         return f"Split {self.dest1} {self.dest2}"
 
 @dataclass
-class Branch(Instruction):
+class AluOp(Instruction):
     """
     Jump to a given destination if the current input character is within a given range.
     """
@@ -69,6 +69,25 @@ class Branch(Instruction):
                 if guaranteed:
                     return f"Nop"
                 return f"InvBranch {self.dest} {c_min} {c_max}"
+
+# Define some Pseudo Ops for convenience
+def Consume() -> Instruction:
+    return AluOp(True, False, 0, 0x00, 0xFF)
+
+def Die() -> Instruction:
+    return AluOp(True, True, 0, 0x00, 0xFF)
+
+def Jump(dest: int) -> Instruction:
+    return AluOp(False, False, dest, 0x00, 0xFF)
+
+def Compare(c_min: int, c_max: int, inverted: bool) -> Instruction:
+    return AluOp(True, inverted, 0, c_min, c_max)
+
+def Literal(c: int, inverted: bool) -> Instruction:
+    return AluOp(True, inverted, 0, c, c)
+
+def Branch(c_min: int, c_max: int, dest: int) -> Instruction:
+    return AluOp(False, False, dest, c_min, c_max)
 
 def encode_char(c: int) -> str:
     '''

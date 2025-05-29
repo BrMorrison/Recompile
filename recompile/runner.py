@@ -40,7 +40,7 @@ def execution_step(
         execution_step(program, s, save_data, matches, i.dest2, sc)
         save_data = old_data
         next_pc = i.dest1
-    elif isinstance(i, inst.Branch):
+    elif isinstance(i, inst.AluOp):
         in_range = c >= i.c_min and c <= i.c_max
         is_match = in_range != i.inverted
 
